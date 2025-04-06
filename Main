@@ -1,0 +1,90 @@
+import smtplib
+import requests
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import time
+
+# Configuration
+SENDER_EMAIL = "your_email@example.com"  # Your email address
+SENDER_PASSWORD = "your_app_password"    # App-specific password if using 2FA
+SMTP_SERVER = "smtp.gmail.com"           # Adjust for your email provider
+SMTP_PORT = 587                          # Adjust for your email provider
+
+# Hosting provider's abuse contact (replace with actual email)
+HOSTING_PROVIDER_ABUSE_EMAIL = "abuse@hostingprovider.com"
+
+# Details of the content to report
+CONTENT_DETAILS = {
+    "url": "https://example.com/malicious-content",  # URL of the content
+    "description": "This URL contains potential CSAM material linked from Discord.",
+    "timestamp": "2025-04-06 18:13 UTC",            # Current date/time
+    "discord_server": "ServerName#1234",            # Discord server info, if applicable
+    "additional_info": "Reported to Discord on 2025-04-06, no action taken."
+}
+
+def send_takedown_request(content):
+    # Email subject and body
+    subject = f"Urgent Takedown Request: Potential CSAM Content - {content['url']}"
+    body = f"""
+    To Whom It May Concern,
+
+    I am writing to report the following content hosted on your service that appears to contain potential Child Sexual Abuse Material (CSAM) or other malicious content:
+
+    URL: {content['url']}
+    Description: {content['description']}
+    Timestamp: {content['timestamp']}
+    Discord Server (if applicable): {content['discord_server']}
+    Additional Information: {content['additional_info']}
+
+    This content was reported to Discord on 2025-04-06, but no action has been taken. As this may violate your Terms of Service and applicable laws, I request its immediate removal. Please confirm receipt and action taken at your earliest convenience.
+
+    Thank you for your prompt attention to this serious matter.
+
+    Regards,
+    [Your Name]
+    [Your Contact Info]
+    """
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = HOSTING_PROVIDER_ABUSE_EMAIL
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Connect to SMTP server
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+
+        # Send email
+        server.sendmail(SENDER_EMAIL, HOSTING_PROVIDER_ABUSE_EMAIL, msg.as_string())
+        server.quit()
+        print(f"Takedown request sent successfully for {content['url']}")
+    except Exception as e:
+        print(f"Failed to send takedown request: {e}")
+
+def check_url_status(url):
+    # Optional: Check if the content is still online
+    try:
+        response = requests.head(url, timeout=5)
+        if response.status_code == 200:
+            return True  # Content is still up
+        return False
+    except requests.RequestException:
+        return True  # Assume it's still up if check fails
+
+def main():
+    # List of content to report (can be expanded to a file or database)
+    content_list = [CONTENT_DETAILS]
+
+    for content in content_list:
+        if check_url_status(content["url"]):
+            send_takedown_request(content)
+            time.sleep(5)  # Avoid overwhelming the server
+        else:
+            print(f"Content at {content['url']} is no longer accessible.")
+
+if __name__ == "__main__":
+    main()
